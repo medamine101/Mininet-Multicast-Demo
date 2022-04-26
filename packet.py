@@ -8,6 +8,7 @@ import select
 import random
 import asyncore
 import numpy as np
+from typing import List
 
 def create_packet(pkttype, src, dst, seq, data):
     """Create a new packet based on given id"""
@@ -29,8 +30,68 @@ def read_data(pkt):
     data = pkt[32:]
     return data
 
+def create_centroid_request_packet(pkttype: int, seq: int, src: int, *dests: int) -> bytes:
+    # Create packet for centroid request
+    # Type (1), seq (1), src (1), N (1), dests (1)
+    N = len(dests)
 
+    if N == 1:
+        packet: bytes = struct.pack('BBBBB', pkttype, seq, src, N, dests[0])
+    elif N == 2:
+        packet: bytes = struct.pack('BBBBBB', pkttype, seq, src, N, dests[0], dests[1])
+    elif N == 3:
+        packet: bytes = struct.pack('BBBBBBB', pkttype, seq, src, N, dests[0], dests[1], dests[2])
+    else:
+        print("Invalid number!")
+        packet = struct.pack('BBBBB', pkttype, seq, src, N, dests[0])
+    return packet
 
+def create_centroid_reply_packet(pkttype: int, seq: int, src: int, mean: int) -> bytes:
+    # Create packet for centroid reply
+    # Type (1), seq (1), src (1), mean (1)
+    packet: bytes = struct.pack('BBBB', pkttype, seq, src, mean)
+    return packet
+
+def create_data_multicast_packet(pkttype: int, seq: int, src: int, K: int, *dests: int, data: str = '') -> bytes:
+    # Create packet for multicast data
+    # Type (1), seq (1), src (1), K (1), dests (1 each), data (1000)
+
+    N = len(dests)
+    Len = len(data)
+
+    if N == 1:
+        packet: bytes = struct.pack('BBBBBBB', pkttype, seq, src, N, K, Len, dests[0])
+    elif N == 2:
+        packet: bytes = struct.pack('BBBBBBBB', pkttype, seq, src, N, K, Len, dests[0], dests[1])
+    elif N == 3:
+        packet: bytes = struct.pack('BBBBBBBBB', pkttype, seq, src, N, K, Len, dests[0], dests[1], dests[2])
+    else:
+        print("Invalid number!")
+        packet = struct.pack('BBBBB', pkttype, seq, src, N, K)
+    
+    return packet + bytes(data,'utf-8')
+
+def create_data_unicast_packet(pkttype: int, seq: int, src: int, srcCen: int, dst: int, data: str = '') -> bytes:
+    # Create packet for unicast data
+    # Type (1), seq (1), src (1), srcCen (1), dst (1), data (1000)
+
+    packet = struct.pack('BBBBBB', pkttype, seq, src, srcCen, dst, len(data)) + bytes(data,'utf-8') # Data length is missing in the PDF page 8
+
+    return packet
+
+def create_data_multicast_ack(pkttype: int, seq: int, src: int, dst: int) -> bytes:
+    # Create packet for multicast acknowledgement
+    # Type (1), seq (1), src (1), dst (1)
+
+    packet: bytes = struct.pack('BBBB', pkttype, seq, src, dst)
+    return packet
+
+def create_data_unicast_ack(pkttype: int, seq: int, src: int, dst: int, dstCen: int) -> bytes:
+    # Create packet for unicast acknowledgement
+    # Type (1), seq (1), src (1), dst (1), dstCen (1)
+
+    packet: bytes = struct.pack('BBBBB', pkttype, seq, src, dst, dstCen)
+    return packet
 
 ###################################
 ####   Assignment Code Below   ####
