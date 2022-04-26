@@ -5,7 +5,7 @@ from mininet.log import lg, info
 from mininet.cli import CLI
 from mininet.node import Node
 from mininet.link import Link
-from router import Router
+# from router import Router
 
 
 # TODO: Create topology including routers and hosts
@@ -20,6 +20,7 @@ def custom_topo():
     #Create switch to use with sshd
     #s1 = net.addSwitch ( 's1' )
     r1 = net.addHost( 'r1' , ip='192.168.1.2/24' )
+
     h1 = net.addHost( 'h1' , ip='192.168.1.1/24', defaultRoute= 'via 192.168.1.2')
     h2 = net.addHost( 'h2' , ip='192.168.2.1/24', defaultRoute= 'via 192.168.2.2')
     h3 = net.addHost( 'h3' , ip='192.168.3.1/24', defaultRoute= 'via 192.168.3.2')

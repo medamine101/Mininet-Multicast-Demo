@@ -1,6 +1,9 @@
-from packet import *
+import socket as Socket
 
+socket = Socket.socket(Socket.AF_INET, Socket.SOCK_DGRAM)
+socket.bind(('0.0.0.0', 8080))
 
-packet = create_data_multicast_packet(1, 1, 1, 2, 2, data ="Hello World")
-
-print(packet)
+while True:
+    data, addr = socket.recvfrom(1024)
+    print(data)
+    socket.sendto(data, addr)
