@@ -6,4 +6,5 @@ socket.bind(('0.0.0.0', 8080))
 while True:
     data, addr = socket.recvfrom(1024)
     print(data)
+    print ("Received from ", addr)
     socket.sendto(data, addr)

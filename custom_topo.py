@@ -5,7 +5,7 @@ from mininet.log import lg, info
 from mininet.cli import CLI
 from mininet.node import Node
 from mininet.link import Link
-# from router import Router
+from router import udp_router
 
 
 # TODO: Create topology including routers and hosts
