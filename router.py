@@ -1,5 +1,6 @@
-import socket as Socket
+from socket import gethostname, gethostbyname, socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST, IPPROTO_UDP
 from threading import Thread
+from packet import *
 
 # Creates new router
 
@@ -12,8 +13,8 @@ class udprouter():
         self.id = id
         self.rt = {'routes': [{'id': 101, 'ip': '192.168.1.1', 'gateway': '192.168.1.2', 'port': 8880},
                               {'id': 202, 'ip': '10.0.1.1', 'gateway': '10.0.1.0', 'port': 8882}]}
-        hostname = Socket.gethostname()
-        self.local_ip = Socket.gethostbyname(hostname)
+        hostname = gethostname()
+        self.local_ip = gethostbyname(hostname)
 
     # Using the dst received in packet find the corresponding dst address
     def search_dst_addr(self, dst):
@@ -24,7 +25,7 @@ class udprouter():
 
     # Sends packet to dst address
     def handle_sending(self, packet, server):
-        s = Socket.socket(AF_INET, SOCK_DGRAM)
+        s = socket(AF_INET, SOCK_DGRAM)
         s.sendto(packet, server)
         print('Sending To: ', server)
         s.close()
@@ -47,9 +48,9 @@ class udprouter():
 
     def broadcast_hello(self):
         msg = create_HELLO_packet(seq=0, TTL=50, src=self.local_ip)
-        with Socket.socket(Socket.AF_INET, Socket.SOCK_DGRAM, Socket.IPPROTO_UDP) as sock:
-            sock.setsockopt(Socket.SOL_SOCKET, Socket.SO_REUSEADDR, 1)
-            sock.setsockopt(Socket.SOL_SOCKET, Socket.SO_BROADCAST, 1)
+        with socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) as sock:
+            sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
             sock.sendto(msg, ("255.255.255.255", 8080))
 
 

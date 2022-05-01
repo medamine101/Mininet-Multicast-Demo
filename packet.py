@@ -38,12 +38,12 @@ def read_data(pkt):
 ###################################
 
 #Hello packet type = 0
-# def create_HELLO_packet(seq: int, TTL: int, src: str, pkttype: int = 0) -> bytes:
-#     # Create packet for HELLO
-#     # Type (1), seq (1), TTL (1), arc (1)
+def create_HELLO_packet(seq: int, TTL: int, src: str, pkttype: int = 0) -> bytes:
+    # Create packet for HELLO
+    # Type (1), seq (1), TTL (1), arc (1)
 
-#     packet: bytes = struct.pack('BBB12B', pkttype, seq, TTL, src)
-#     return packet
+    packet: bytes = struct.pack('BBB12B', pkttype, seq, TTL, src)
+    return packet
 
 # def create_centroid_request_packet(pkttype: int, seq: int, src: int, *dests: int) -> bytes:
 #     # Create packet for centroid request
