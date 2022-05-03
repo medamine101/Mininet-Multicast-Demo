@@ -1,3 +1,4 @@
+from cgi import print_arguments
 from socket import gethostname, gethostbyname, socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST, IPPROTO_UDP, getaddrinfo, SO_REUSEPORT
 from threading import Thread
 from packet import *
@@ -63,24 +64,31 @@ class udprouter():
         # Send HELLO every 10 seconds
         while True:
             sock.sendto(msg, (BROADCAST_ADDRESS, BROADCAST_PORT))
-            sleep(10)
+            sleep(2)
 
 
     def handle_hello(self):
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
-        sock.bind(('', BROADCAST_ADDRESS))
+        sock.bind(('0.0.0.0', BROADCAST_PORT))
 
-        
+        while True:
+            data, addr = sock.recvfrom(4)
 
+            # Get ip address of all interfaces from ifconfig
+            addresses: List[str] = []
+            for interface in ni.interfaces():
+                addresses.append(ni.ifaddresses(interface)[ni.AF_INET][0]['addr'])
 
+            # Ignore packet if send from self
+            if (addr[0] in addresses):
+                continue
 
-        
+            print("Received From: ", addr)
+            print(data)
 
         # one thread for keeping the routing table updated
-        
-        # on thread for handling multicast 
 
 
 
