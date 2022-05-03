@@ -65,6 +65,7 @@ class udprouter():
         while True:
             sock.sendto(msg, (BROADCAST_ADDRESS, BROADCAST_PORT))
             sleep(2)
+            # print(self.routing_table.__table__.items())
 
 
     def handle_hello(self):
@@ -88,6 +89,11 @@ class udprouter():
             print("Received From: ", addr)
             print(data)
 
+            # Get hello packet data
+            pkttype, seq, TTL, src_id = decode_HELLO_packet(data)
+
+            # Add new router/host to routing table
+            self.routing_table.add_entry(src_id, addr[0])
         # one thread for keeping the routing table updated
 
 

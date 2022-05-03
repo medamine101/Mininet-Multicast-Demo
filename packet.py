@@ -9,7 +9,7 @@ import select
 import random
 import asyncore
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Tuple
 from udphost import udphost
 from router import udprouter
 
@@ -44,7 +44,7 @@ def create_HELLO_packet(seq: int, TTL: int, src_id: int, pkttype: int = 0) -> by
     packet: bytes = struct.pack('BBBB', pkttype, seq, TTL, src_id)
     return packet
 
-def decode_HELLO_packet(packet: bytes):
+def decode_HELLO_packet(packet: bytes) -> Tuple[int, int, int, int]:
     # Decode HELLO packet
     # Type (1), seq (1), TTL (1), src_id (1)
     pkttype, seq, TTL, src_id = struct.unpack('BBBB', packet)
