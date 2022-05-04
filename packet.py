@@ -8,10 +8,10 @@ import struct
 import select
 import random
 import asyncore
-import numpy as np
+# import numpy as np
 from typing import List, Union, Tuple
-from udphost import udphost
-from router import udprouter
+# from udphost import udphost
+# from router import udprouter
 
 def create_packet(pkttype, src, dst, seq, data):
     """Create a new packet based on given id"""
@@ -33,22 +33,22 @@ def read_data(pkt):
     data = pkt[32:]
     return data
 
-###################################
-##  Different Packet Types Below ##
-###################################
+##################################
+#  Different Packet Types Below ##
+##################################
 
-#Hello packet type = 0
-def create_HELLO_packet(seq: int, TTL: int, src_id: int, pkttype: int = 0) -> bytes:
+# Hello packet type = 0
+def create_HELLO_packet(seq: int, ttl: int, src_id: int, pkttype: int = 0) -> bytes:
     # Create packet for HELLO
     # Type (1), seq (1), TTL (1), src_id (1)
-    packet: bytes = struct.pack('BBBB', pkttype, seq, TTL, src_id)
+    packet: bytes = struct.pack('BBBB', pkttype, seq, ttl, src_id)
     return packet
 
 def decode_HELLO_packet(packet: bytes) -> Tuple[int, int, int, int]:
     # Decode HELLO packet
     # Type (1), seq (1), TTL (1), src_id (1)
-    pkttype, seq, TTL, src_id = struct.unpack('BBBB', packet)
-    return pkttype, seq, TTL, src_id
+    pkttype, seq, ttl, src_id = struct.unpack('BBBB', packet)
+    return pkttype, seq, ttl, src_id
 
 def create_centroid_request_packet(pkttype: int, seq: int, src: int, *dests: int) -> bytes:
     # Create packet for centroid request
@@ -113,35 +113,35 @@ def create_data_unicast_ack(pkttype: int, seq: int, src: int, dst: int, dstCen: 
     packet: bytes = struct.pack('BBBBB', pkttype, seq, src, dst, dstCen)
     return packet
 
-###################################
-####   Assignment Code Below   ####
-###################################
+##################################
+###   Assignment Code Below   ####
+##################################
 
-#Starts a ping from current host (src) to desired destination (dst)
-def ping(h, c, dst):
-    seq_num, nor, rtt = 0, 0, []
-    #count = 0
-    for x in range(c):
-        #count += 1
-        # Creates and sends the request packet
-        packet = create_packet(1, h.id, dst, seq=seq_num, data='This is assignment 5!')
-        send_packet(h, packet)
-        send_time = time.time()
+# Starts a ping from current host (src) to desired destination (dst)
+# def ping(h, c, dst):
+#     seq_num, nor, rtt = 0, 0, []
+#     #count = 0
+#     for x in range(c):
+#         #count += 1
+#         # Creates and sends the request packet
+#         packet = create_packet(1, h.id, dst, seq=seq_num, data='This is assignment 5!')
+#         send_packet(h, packet)
+#         send_time = time.time()
 
-        # Waits to receive a reply packet to move onto next ping
-        seq_failed = receive_packet(h, packet)
-        if seq_failed == -1:
-            rtt.append(time.time()-send_time)
-            seq_num += 1
-        else:
-            x -= 1
-            nor += 1
-            print("Retransmitting packet with seq num: ", seq_num)
-    rtt = np.array(rtt)
-    #print(count)
-    print(c, " packets transmitted, ", nor, " packets retransmitted, ", (nor/c)*100, "% packet loss",
-         "\n round-trip min/avg/max/stddev = ", np.min(rtt),"/",np.mean(rtt),"/",np.max(rtt),"/",np.std(rtt), " s" )
-    return 0
+#         # Waits to receive a reply packet to move onto next ping
+#         seq_failed = receive_packet(h, packet)
+#         if seq_failed == -1:
+#             rtt.append(time.time()-send_time)
+#             seq_num += 1
+#         else:
+#             x -= 1
+#             nor += 1
+#             print("Retransmitting packet with seq num: ", seq_num)
+#     rtt = np.array(rtt)
+#     #print(count)
+#     print(c, " packets transmitted, ", nor, " packets retransmitted, ", (nor/c)*100, "% packet loss",
+#          "\n round-trip min/avg/max/stddev = ", np.min(rtt),"/",np.mean(rtt),"/",np.max(rtt),"/",np.std(rtt), " s" )
+#     return 0
 
 # Sends a packet across UDP socket the corresponding router gateway for that host
 def send_packet(h, packet: bytes):

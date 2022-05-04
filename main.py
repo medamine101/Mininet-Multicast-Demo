@@ -4,7 +4,7 @@ from mininet.net import Mininet
 from mininet.topo import Topo
 from mininet.log import setLogLevel
 from mininet.node import Node
-from custom_topo import custom_topo
+# from custom_topo import
 
 
 def main():

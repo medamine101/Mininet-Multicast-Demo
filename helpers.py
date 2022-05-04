@@ -3,25 +3,34 @@ from time import sleep
 from typing import Dict, List, Union, Tuple
 from threading import Thread
 
-BROADCAST_ADDRESS = '10.255.255.255'# Address to broadcast to all ips
-
+# BROADCAST_ADDRESS = '10.255.255.255'# Address to broadcast to all ips
+BROADCAST_ADDRESS = '10.0.255.255'# Address to broadcast to all ips
 BROADCAST_PORT = 8080 # Used for HELLO packets
 
-DEFAULT_PORT = 8000
+DEFAULT_TTL = 50 # Default TTL for packets
+
+UNICAST_PORT = 8000 # Port used for unicast packets
+MULTICAST_PORT = 8888 # Port used for multicast packets
 
 class table_entry():
     ip_address: str
-    TTL: int
+    ttl: int
+    seq: int 
+    dist: int
 
-    def __init__(self, ip_address: str, TTL: int = 10):
+    def __init__(self, ip_address: str, seq: int, dist: int, ttl: int = 10):
         self.ip_address = ip_address
-        self.TTL = TTL
+        self.ttl = ttl
+        self.seq = seq
+        self.dist = dist
     
-    def set_TTL(self, TTL: int):
-        self.TTL = TTL
+    def set_ttl(self, ttl: int):
+        self.ttl = ttl
 
-    def decrement_TTL(self):
-        self.TTL -= 1
+    def decrement_ttl(self):
+        self.ttl -= 1
+
+    
 
 class routing_table():
     
@@ -35,17 +44,31 @@ class routing_table():
         thread.start()
 
 
-    def add_entry(self, id: int, ip: str):
-        if id in self.__table__:
-            self.__table__[id].set_TTL(10)
-        else:
-            self.__table__[id] = table_entry(ip)
+    def add_entry(self, id: int, ip: str, seq: int, dist: int):
+        self.__table__[id] = table_entry(ip, seq, dist)
     
     def remove_entry(self, id: int):
         del self.__table__[id]
 
+    def check_entry(self, id: int) -> bool:
+        if id in self.__table__:
+            return True
+        return False
+
     def get_ip(self, id: int) -> str:
-        return self.__table__[id].ip_address
+        if id in self.__table__:
+            return self.__table__[id].ip_address
+        return ''
+
+    def get_seq(self, id: int) -> int:
+        if id in self.__table__:
+            return self.__table__[id].seq
+        return -1
+
+    def get_dist(self, id: int) -> int:
+        if id in self.__table__:
+            return self.__table__[id].dist
+        return -1
     
     def get_id(self, ip: int) -> Union[int, None]:
         for k, v in self.__table__.items():
@@ -64,11 +87,11 @@ class routing_table():
 
             sleep(1)
 
-            # Decrement TTL for all entries, remove if TTL == 0
+            # Decrement ttl for all entries, remove if ttl == 0
             keys_to_delete = []
             for k, v in self.__table__.items():
-                v.decrement_TTL() # Decrement TTL
-                if v.TTL <= 0: # Set entry to be removed if TTL == 0
+                v.decrement_ttl() # Decrement ttl
+                if v.ttl <= 0: # Set entry to be removed if ttl == 0
                     keys_to_delete.append(k)
             for k in keys_to_delete: # Remove entries
                 self.remove_entry(k)
