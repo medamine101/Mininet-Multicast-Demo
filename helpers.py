@@ -3,14 +3,30 @@ from time import sleep
 from typing import Dict, List, Union, Tuple
 from threading import Thread
 
-# BROADCAST_ADDRESS = '10.255.255.255'# Address to broadcast to all ips
-BROADCAST_ADDRESS = '10.0.255.255'  # Address to broadcast to all ips
-BROADCAST_PORT = 8080  # Used for HELLO packets
-
 DEFAULT_TTL = 50  # Default TTL for packets
 
-UNICAST_PORT = 8000  # Port used for unicast packets
-MULTICAST_PORT = 8888  # Port used for multicast packets
+DISCOVERY_PORT = 8080  # Used for HELLO packets
+DATA_PORT = 8000  # Port used for data packets
+CENTROID_SETUP_PORT = 8888  # Port used for setting up multicast packets
+
+class centroid():
+    is_centroid: bool
+    dests: List[int]
+
+    def __init__(self):
+        self.is_centroid = False
+        self.dests = []
+
+    def set_centroid(self, dests: List[int]):
+        self.is_centroid = True
+        self.dests = dests
+    
+    def remove_centroid(self):
+        self.is_centroid = False
+        self.dests = []
+    
+    def get_dests(self):
+        return self.dests
 
 
 class table_entry():
@@ -42,8 +58,7 @@ class routing_table():
         self.__table__ = {}
 
         # Run thread for updating table
-        thread = Thread(target=self.run_table)
-        thread.start()
+        Thread(target=self.run_table).start()
 
     def add_entry(self, id: int, ip: str, next_hop: str, seq: int, dist: int):
         self.__table__[id] = table_entry(
@@ -77,6 +92,11 @@ class routing_table():
             if v == ip:
                 return k
         return None
+
+    def get_next_hop(self, id: int) -> str:
+        if id in self.__table__:
+            return self.__table__[id].next_hop
+        return ''
 
     def get_size(self) -> int:
         return len(self.__table__)

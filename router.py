@@ -6,32 +6,38 @@ from packet import *
 from time import sleep
 import netifaces as ni
 from helpers import *
+from typing import Tuple, Type
 
 
 class udprouter():
 
+    cent: centroid
+    id:int
+    ip:str
+    seq: int
+    rt: routing_table
     broadcast_addresses: List[str] = []
 
     # each router know other routers' rt
     def __init__(self, id: int, ip: str):
         self.id = id
-        self.ip = ''+ip
-        self.routing_table = routing_table()
+        self.ip = ip
+        self.rt = routing_table()
+        self.cent = centroid()
         self.seq = 0
 
         # thread for broadcasting hello
-        broadcast_thread = Thread(
-            target=self.broadcast_hello_packet, args=(self.id, DEFAULT_TTL))
-        broadcast_thread.start()
+        Thread(
+            target=self.broadcast_hello_packet, args=(self.id, DEFAULT_TTL)).start()
 
         # thread for handling hello and forwarding it
-        handle_hello_packet_thread = Thread(target=self.handle_hello_packet)
-        handle_hello_packet_thread.start()
+        Thread(target=self.handle_hello_packet).start()
 
         # thread for handling regular packets
-        handle_regular_packet_thread = Thread(
-            target=self.handle_unicast_packet)
-        handle_regular_packet_thread.start()
+        Thread(target=self.handle_multicast_packet).start()
+
+        # TODO thread that handles data packets and forward to destination
+        Thread(target=self.handle_data_packet).start()
 
     # Using the dst received in packet find the corresponding dst address
     # def search_dst_addr(self, dst):
@@ -86,10 +92,10 @@ class udprouter():
 
             for address in self.broadcast_addresses:
                 # print('Sending To: ', address)
-                sock.sendto(msg, (address, BROADCAST_PORT))
+                sock.sendto(msg, (address, DISCOVERY_PORT))
 
             print("ID: ", src_id)
-            print(self.routing_table)
+            print(self.rt)
             sleep(10)
             # print(self.routing_table.__table__.items())
 
@@ -97,7 +103,7 @@ class udprouter():
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
-        sock.bind(('0.0.0.0', BROADCAST_PORT))
+        sock.bind(('0.0.0.0', DISCOVERY_PORT))
 
         while True:
             data, addr = sock.recvfrom(1024)
@@ -123,23 +129,23 @@ class udprouter():
                 continue
 
             # if the source is not in the routing table
-            if not self.routing_table.check_entry(src_id):
+            if not self.rt.check_entry(src_id):
                 # add to routing table
-                self.routing_table.add_entry(
+                self.rt.add_entry(
                     id=src_id, ip=src_ip, next_hop=addr[0], seq=seq, dist=hop_distance)
             # if the source is in the routing table but the hop distance is lesser than the current one
-            elif self.routing_table.get_seq(src_id) < seq and self.routing_table.get_dist(src_id) < hop_distance:
-                self.routing_table.remove_entry(src_id)  # remove old entry
+            elif self.rt.get_seq(src_id) < seq and self.rt.get_dist(src_id) < hop_distance:
+                self.rt.remove_entry(src_id)  # remove old entry
                 # add new entry with closer distance
-                self.routing_table.add_entry(
+                self.rt.add_entry(
                     id=src_id, ip=src_ip, next_hop=addr[0], seq=seq, dist=hop_distance)
             else:
                 continue
 
             if ttl > 0:
-                self.forward_packet(data)
+                self.forward_hello_packet(data)
 
-    def forward_packet(self, data):
+    def forward_hello_packet(self, data):
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
@@ -149,17 +155,62 @@ class udprouter():
             seq=seq, ttl=ttl-1, src_id=src_id, src_ip=src_ip)
         # print("Forwarded packet: ", forwarded_packet)
         for address in self.broadcast_addresses:
-            sock.sendto(forwarded_packet, (address, BROADCAST_PORT))
+            sock.sendto(forwarded_packet, (address, DISCOVERY_PORT))
 
-    def handle_unicast_packet(self):
+    def handle_multicast_packet(self):
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
-        sock.bind(('0.0.0.0', UNICAST_PORT))
+        sock.bind(('0.0.0.0', CENTROID_SETUP_PORT))
 
         while True:
             data, addr = sock.recvfrom(1024)
+            # decode multicast packet
+            if len(data) == 2: # handle centroid reply 
+                src, dst = decode_centroid_reply_packet(data)
+                sock.sendto(data, (self.rt.get_next_hop(dst), CENTROID_SETUP_PORT))
+            else: # handle centroid request
+                pkttype, seq, src, N, dests = decode_centroid_request_packet(data)
+                # check if there is a bifurcation
+                possible_next_hops = set()
+                for dest in dests:
+                    possible_next_hops.add(self.rt.get_next_hop(dest))
+                
+                if len(possible_next_hops) > 1: # bifurcation -> reply with centroid reply
+                    centroid_reply = create_centroid_reply_packet(src=self.id, dst=src)
+                    sock.sendto(centroid_reply, addr)
+                    self.centroid = True
 
+                else: # no bifurcation -> forward the centroid request to next hop
+                    for dest in possible_next_hops:
+                        sock.sendto(data, (dest, CENTROID_SETUP_PORT))
+
+    def handle_data_packet(self):
+        sock = socket(AF_INET, SOCK_DGRAM)
+        sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
+        sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
+        sock.bind(('0.0.0.0', DATA_PORT))
+
+        while True:
+            packet, addr = sock.recvfrom(1024)
+            # decode data packet
+            # pkttype, seq, ttl, src_id, src_ip, dest_id, dest_ip, data_type, data_content = decode_data_packet(data)
+            pkttype, seq, src, dst, data = decode_data_packet(packet)
+            if self.cent.is_centroid:
+                for dest in self.cent.get_dests():
+                    # TODO reconstruct data packet with correct dest and send it
+                    # new_data_packet = create_data_packet()
+                    new_data_packet = create_data_packet(pkttype=1, seq=seq, src=self.id, dst=dst, data=data)
+                    sock.sendto(new_data_packet, (self.rt.get_next_hop(dest), DATA_PORT))
+                    sock.sendto(new_data_packet, self.rt.get_next_hop(dest))
+            elif pkttype == 2: # forward to destination
+                sock.sendto(packet, self.rt.get_next_hop(dst))
+
+
+                    
+                    
+
+                
 
 if __name__ == '__main__':
     print("Router Started...")
@@ -179,5 +230,3 @@ if __name__ == '__main__':
     # print("Device IP: ", device_ip)
     # print("Device ID: ", device_id)
     udp_router = udprouter(id=device_id, ip=device_ip)
-    # udp_router.broadcast_hello_packet()
-    # udp_router.handle_packets()
