@@ -12,8 +12,8 @@ from typing import Tuple, Type
 class udprouter():
 
     cent: centroid
-    id:int
-    ip:str
+    id: int
+    ip: str
     seq: int
     rt: routing_table
     broadcast_addresses: List[str] = []
@@ -166,28 +166,30 @@ class udprouter():
         while True:
             data, addr = sock.recvfrom(1024)
             # decode multicast packet
-            if len(data) == 2: # handle centroid reply 
+            if len(data) == 2:  # handle centroid reply
                 src, dst = decode_centroid_reply_packet(data)
-                sock.sendto(data, (self.rt.get_next_hop(dst), CENTROID_SETUP_PORT))
-            else: # handle centroid request
-                pkttype, seq, src, N, dests = decode_centroid_request_packet(data)
+                sock.sendto(
+                    data, (self.rt.get_next_hop(dst), CENTROID_SETUP_PORT))
+            else:  # handle centroid request
+                pkttype, seq, src, N, dests = decode_centroid_request_packet(
+                    data)
                 # check if there is a bifurcation
                 possible_next_hops = set()
                 for dest in dests:
                     possible_next_hops.add(self.rt.get_next_hop(dest))
-                
-                if len(possible_next_hops) > 1: # bifurcation -> reply with centroid reply
-                    centroid_reply = create_centroid_reply_packet(src=self.id, dst=src)
+
+                if len(possible_next_hops) > 1:  # bifurcation -> reply with centroid reply
+                    centroid_reply = create_centroid_reply_packet(
+                        src=self.id, dst=src)
                     sock.sendto(centroid_reply, addr)
                     self.centroid = True
 
-                else: # no bifurcation -> forward the centroid request to next hop
+                else:  # no bifurcation -> forward the centroid request to next hop
                     for dest in possible_next_hops:
                         sock.sendto(data, (dest, CENTROID_SETUP_PORT))
 
     def handle_data_packet(self):
         sock = socket(AF_INET, SOCK_DGRAM)
-        sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.bind(('0.0.0.0', DATA_PORT))
 
@@ -200,17 +202,14 @@ class udprouter():
                 for dest in self.cent.get_dests():
                     # TODO reconstruct data packet with correct dest and send it
                     # new_data_packet = create_data_packet()
-                    new_data_packet = create_data_packet(pkttype=1, seq=seq, src=self.id, dst=dst, data=data)
-                    sock.sendto(new_data_packet, (self.rt.get_next_hop(dest), DATA_PORT))
+                    new_data_packet = create_data_packet(
+                        pkttype=1, seq=seq, src=self.id, dst=dst, data=data)
+                    sock.sendto(new_data_packet,
+                                (self.rt.get_next_hop(dest), DATA_PORT))
                     sock.sendto(new_data_packet, self.rt.get_next_hop(dest))
-            elif pkttype == 2: # forward to destination
+            elif pkttype == 2:  # forward to destination
                 sock.sendto(packet, self.rt.get_next_hop(dst))
 
-
-                    
-                    
-
-                
 
 if __name__ == '__main__':
     print("Router Started...")

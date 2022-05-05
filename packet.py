@@ -13,12 +13,14 @@ from typing import List, Union, Tuple
 # from udphost import udphost
 # from router import udprouter
 
+
 def create_packet(pkttype, src, dst, seq, data):
     """Create a new packet based on given id"""
     # Type(1),  LEN(4), SRCID(1),  DSTID(1), SEQ(4), DATA(1000)
     pktlen = len(data)
     header = struct.pack('BLBBL', pkttype, pktlen, dst, src, seq)
     return header + bytes(data, 'utf-8')
+
 
 def read_header(pkt):
     # Change the bytes to account for network encapsulations
@@ -27,6 +29,7 @@ def read_header(pkt):
     # pktSize = struct.calcsize(pktFormat)
     pkttype, pktlen, dst, src, seq = struct.unpack('BLBBL', header)
     return pkttype, pktlen, dst, src, seq
+
 
 def read_data(pkt):
     # Change the bytes to account for network encapsulations
@@ -38,6 +41,8 @@ def read_data(pkt):
 ##################################
 
 # Hello packet type = 0
+
+
 def create_HELLO_packet(seq: int, ttl: int, src_id: int, src_ip: str, pkttype: int = 0) -> bytes:
     # Create packet for HELLO
     # Type (1), seq (1), TTL (1), src_id (1)
@@ -46,6 +51,7 @@ def create_HELLO_packet(seq: int, ttl: int, src_id: int, src_ip: str, pkttype: i
         'BBBB', pkttype, seq, ttl, src_id) + src_ip.encode('utf-8')
     # print("Packet: ", packet)
     return packet
+
 
 def decode_HELLO_packet(packet: bytes) -> Tuple[int, int, int, int, str]:
     # Decode HELLO packet
@@ -60,7 +66,7 @@ def create_centroid_request_packet(seq: int, src: int, *dests: int) -> bytes:
     # Create packet for centroid request
     # Type (1), seq (1), src (1), N (1), dests (1)
     N = len(dests)
-    pkttype = 1 # Centroid request
+    pkttype = 1  # Centroid request
 
     if N == 1:
         packet: bytes = struct.pack('BBBBB', pkttype, seq, src, N, dests[0])
@@ -88,7 +94,8 @@ def decode_centroid_request_packet(packet: bytes) -> Tuple[int, int, int, int, L
         pkttype, seq, src, N, dest1, dest2 = struct.unpack('BBBBBB', packet)
         dests = [dest1, dest2]
     elif packet_size == 7:
-        pkttype, seq, src, N, dest1, dest2, dest3 = struct.unpack('BBBBBBB', packet)
+        pkttype, seq, src, N, dest1, dest2, dest3 = struct.unpack(
+            'BBBBBBB', packet)
         dests = [dest1, dest2, dest3]
     else:
         print("Invalid packet size!")
@@ -97,13 +104,14 @@ def decode_centroid_request_packet(packet: bytes) -> Tuple[int, int, int, int, L
     return pkttype, seq, src, N, dests
 
 
-def create_centroid_reply_packet(src: int, dst:int) -> bytes:
+def create_centroid_reply_packet(src: int, dst: int) -> bytes:
     # Create packet for centroid reply
     # src (1), dst(1)
     packet: bytes = struct.pack('BB', src, dst)
     return packet
 
-def decode_centroid_reply_packet(packet: bytes) -> Tuple[int,int]:
+
+def decode_centroid_reply_packet(packet: bytes) -> Tuple[int, int]:
     # Decode centroid reply packet
     # src (1), dst(1)
     src, dst = struct.unpack('BB', packet)
@@ -151,6 +159,7 @@ def decode_data_packet(packet: bytes) -> Tuple[int, int, int, int, str]:
     data = packet[5:].decode('utf-8')
 
     return pkttype, seq, src, dst, data
+
 
 def create_data_multicast_ack(pkttype: int, seq: int, src: int, dst: int) -> bytes:
     # Create packet for multicast acknowledgement
