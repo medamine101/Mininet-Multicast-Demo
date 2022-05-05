@@ -91,12 +91,6 @@ class routing_table():
             return self.__table__[id].dist
         return -1
 
-    def get_id(self, ip: int) -> Union[int, None]:
-        for k, v in self.__table__.items():
-            if v == ip:
-                return k
-        return None
-
     def get_next_hop(self, id: int) -> str:
         if id in self.__table__:
             return self.__table__[id].next_hop

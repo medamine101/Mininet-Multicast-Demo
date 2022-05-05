@@ -40,36 +40,12 @@ class udprouter():
         # TODO thread that handles data packets and forward to destination
         Thread(target=self.handle_data_packet).start()
 
-    # Using the dst received in packet find the corresponding dst address
-    # def search_dst_addr(self, dst):
-    #     for x in range(len(self.rt['routes'])):
-    #         if self.rt['routes'][x]['id'] == dst:
-    #             return (self.rt['routes'][x]['ip'], self.rt['routes'][x]['port'])
-    #     return ('10.0.1.1', 8882)
-
-    # Sends packet to dst address
-
     def handle_sending(self, packet, server):
         s = socket(AF_INET, SOCK_DGRAM)
         s.sendto(packet, server)
         # print('Sending To: ', server)
         s.close()
         return 0
-
-    # Waits to receive a packet and if the correct type starts new thread to sent that packet
-    # def handle_packets(self):
-    #     s = socket(AF_INET, SOCK_DGRAM)
-    #     s.bind(('0.0.0.0', self.port))
-    #     while True:
-    #         packet, addr = s.recvfrom(1024)
-    #         print("Received From: ", addr)
-    #         pkttype, pktlen, dst, src, seq = read_header(packet)
-    #         if pkttype == 1 or pkttype == 2:
-    #             server = self.search_dst_addr(dst)
-    #             thread = Thread(target=self.handle_sending, args = (packet, server))
-    #             thread.start()
-    #     s.close()
-    #     return 0
 
     def broadcast_hello_packet(self, src_id: int = 100, ttl: int = DEFAULT_TTL):
 
@@ -84,12 +60,6 @@ class udprouter():
                 if (ni.ifaddresses(interface)[ni.AF_INET][0]['addr'] != '127.0.0.1'):
                     self.broadcast_addresses.add(ni.ifaddresses(interface)[
                                                     ni.AF_INET][0]['broadcast'])
-
-
-            
-                                                    
-                # broadcast_addresses.append(ni.ifaddresses(interface)[ni.AF_INET][0]['broadcast'])
-                # print(ni.ifaddresses(interface)[ni.AF_INET][0])
 
             msg = create_HELLO_packet(
                 seq=self.seq, ttl=ttl, src_id=src_id, src_ip=self.ip)
@@ -239,38 +209,32 @@ class udprouter():
                                 (self.rt.get_next_hop(dest), DATA_PORT))
                 self.cent = centroid()
             else:  # forward to destination
+                print('Forwarding data packet to ', self.rt.get_ip(dst))
                 sock.sendto(packet, (self.rt.get_next_hop(dst), DATA_PORT))
             sleep(1)
 
-
 if __name__ == '__main__':
     print("Router Started...")
+
+    # Print all interfaces
     print(ni.interfaces())
+
+    # Get the ip address to be used on print displays to the user
     device_ip: str = ''
     for ifstring in ni.interfaces():
         if 'eth' in ifstring:
             device_ip = ni.ifaddresses(ifstring)[ni.AF_INET][0]['addr']
             break
-
-    # if (device_ip == ''):
-    #     device_ip = '10.10.0.200'
-
-    # remove all .s from device_ip
-    # device_id: int = int(device_ip.replace('.', '').replace('0', ''))
-
-    # print("Device ID: ", device_id)
-    # print("Device IP: ", device_ip)
-
+    
+    # Take device ID as command line argument, must be between 1 and 254
     device_id = 0
-
-    # check if argv 1 is a number between 1 and 254
     if (len(argv) > 1 and argv[1].isdigit() and int(argv[1]) >= 1 and int(argv[1]) <= 254):
         device_id = int(argv[1])
     else:
         print("Invalid device ID. Must be an integer between 1 and 254")
         exit(1)
 
-    
+    # Print the device IP and ID to the user
     print("Device IP: ", device_ip)
     print("Device ID: ", device_id)
     udp_router = udprouter(id=device_id, ip=device_ip)
