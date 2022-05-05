@@ -61,6 +61,10 @@ class routing_table():
         Thread(target=self.run_table).start()
 
     def add_entry(self, id: int, ip: str, next_hop: str, seq: int, dist: int):
+
+        if id in self.__table__:
+            self.__table__[id].set_ttl(DEFAULT_TTL)
+
         self.__table__[id] = table_entry(
             ip_address=ip, next_hop=next_hop, seq=seq, dist=dist)
 

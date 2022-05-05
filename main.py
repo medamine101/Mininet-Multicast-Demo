@@ -8,18 +8,19 @@ from mininet.node import Node
 
 
 def main():
+    pass
     
-    net = custom_topo()
+    # net = custom_topo()
 
-    net.start()
+    # net.start()
 
 
-    # Enter CLI
-    CLI(net)
-    # CLI(net, sys.stdin, script='./script.txt')
+    # # Enter CLI
+    # CLI(net)
+    # # CLI(net, sys.stdin, script='./script.txt')
 
-    # Stop the network
-    net.stop()
+    # # Stop the network
+    # net.stop()
 
 
 

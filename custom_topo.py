@@ -22,6 +22,14 @@ if __name__ == '__main__':
         h2.intf('%s-eth0'%h2.name).setIP('10.0.%d.1'%i, 24) 
         h1.intf('%s-eth1'%h1.name).setIP('10.0.%d.2'%i, 24) 
 
+    h7 = net.hosts[6]
+
+    h9 = net.addHost('h9',ip=None)
+
+    net.addLink(h9, h7, intfName1 = '%s-eth0'%h9.name, intfName2 = '%s-eth2'%h7.name)
+    h9.intf('%s-eth0'%h9.name).setIP('10.0.25.1', 24)
+    h7.intf('%s-eth2'%h7.name).setIP('10.0.25.2', 24)
+
     net.start()
 
     # Ping forward and backward nodes
