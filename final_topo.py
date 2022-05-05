@@ -54,6 +54,8 @@ if __name__ == '__main__':
     r5.intf('%s-eth2'%r5.name).setIP('10.0.13.1', 24)
     d3.intf('%s-eth0'%d3.name).setIP('10.0.13.2', 24)
 
+    net.start()
+
     CLI(net)
 
     net.stop()

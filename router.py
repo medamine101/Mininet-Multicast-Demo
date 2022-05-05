@@ -7,6 +7,7 @@ from time import sleep
 import netifaces as ni
 from helpers import *
 from typing import Tuple, Type, Set
+from sys import argv
 
 
 class udprouter():
@@ -83,6 +84,9 @@ class udprouter():
                 if (ni.ifaddresses(interface)[ni.AF_INET][0]['addr'] != '127.0.0.1'):
                     self.broadcast_addresses.add(ni.ifaddresses(interface)[
                                                     ni.AF_INET][0]['broadcast'])
+
+
+            
                                                     
                 # broadcast_addresses.append(ni.ifaddresses(interface)[ni.AF_INET][0]['broadcast'])
                 # print(ni.ifaddresses(interface)[ni.AF_INET][0])
@@ -94,6 +98,9 @@ class udprouter():
             for address in self.broadcast_addresses:
                 # print('Sending To: ', address)
                 sock.sendto(msg, (address, DISCOVERY_PORT))
+
+            # print("List of broadcast addresses")
+            # print(self.broadcast_addresses, "\n")
 
             # print("ID: ", src_id)
             # print(self.rt)
@@ -124,26 +131,40 @@ class udprouter():
 
             # Get hello packet data
             pkttype, seq, ttl, src_id, src_ip = decode_HELLO_packet(data)
+
+
             hop_distance = DEFAULT_TTL - ttl + 1
+
+            # if (self.rt.check_entry(src_id)):
+            #     if (self.rt.get_dist(src_id) < hop_distance):
+            #         continue
+                
 
             if (src_id == self.id):
                 continue
-
+            # print("Received hello from ", src_ip, " from address ", addr, " hop distance ", hop_distance, " seq ", seq)
+            forward = False
             # if the source is not in the routing table
             if not self.rt.check_entry(src_id):
                 # add to routing table
+                forward = True
                 self.rt.add_entry(
                     id=src_id, ip=src_ip, next_hop=addr[0], seq=seq, dist=hop_distance)
-            # if the source is in the routing table but the hop distance is lesser than the current one
-            elif self.rt.get_seq(src_id) < seq and self.rt.get_dist(src_id) <= hop_distance:
+            # if the source is in the routing table but the hop distance is lesser than the current one and packet is newer
+            elif self.rt.get_seq(src_id) <= seq and self.rt.get_dist(src_id) >= hop_distance:
+                forward = True
+                # if self.rt.get_dist(src_id) > hop_distance:
+                #     forward = True
                 self.rt.remove_entry(src_id)  # remove old entry
                 # add new entry with closer distance
                 self.rt.add_entry(
                     id=src_id, ip=src_ip, next_hop=addr[0], seq=seq, dist=hop_distance)
+            # # if sequence numbers are the same and hop distance 
+            # elif (self.rt.get_seq(src_id) == seq) and (self.rt.get_dist(src_id) < hop_distance):
             else:
                 continue
 
-            if ttl > 0:
+            if (ttl > 0 and forward):
                 self.forward_hello_packet(data)
 
     def forward_hello_packet(self, data):
@@ -168,11 +189,16 @@ class udprouter():
             # decode multicast packet
             if len(data) == 2:  # handle centroid reply
                 src, dst = decode_centroid_reply_packet(data)
+                print("Received centoird packet from ", self.rt.get_ip(src))
+                if (src == self.id):
+                    continue
                 sock.sendto(
                     data, (self.rt.get_next_hop(dst), CENTROID_SETUP_PORT))
             else:  # handle centroid request
                 pkttype, seq, src, N, dests = decode_centroid_request_packet(
                     data)
+
+                print("Received centoird packet from ", self.rt.get_ip(src))
 
                 if (src == self.id): # ignore if packet is from self
                     continue
@@ -184,7 +210,7 @@ class udprouter():
                 if len(possible_next_hops) > 1:  # bifurcation -> reply with centroid reply
                     centroid_reply = create_centroid_reply_packet(
                         src=self.id, dst=src)
-                    sock.sendto(centroid_reply, addr)
+                    sock.sendto(centroid_reply, (self.rt.get_next_hop(src), CENTROID_SETUP_PORT))
                     self.cent.set_centroid(dests=dests)
 
                 else:  # no bifurcation -> forward the centroid request to next hop
@@ -226,14 +252,25 @@ if __name__ == '__main__':
             device_ip = ni.ifaddresses(ifstring)[ni.AF_INET][0]['addr']
             break
 
-    if (device_ip == ''):
-        device_ip = '10.10.0.200'
+    # if (device_ip == ''):
+    #     device_ip = '10.10.0.200'
 
     # remove all .s from device_ip
-    device_id: int = int(device_ip.replace('.', '').replace('0', ''))
-    print("Device ID: ", device_id)
-    print("Device IP: ", device_ip)
+    # device_id: int = int(device_ip.replace('.', '').replace('0', ''))
 
-    # print("Device IP: ", device_ip)
     # print("Device ID: ", device_id)
+    # print("Device IP: ", device_ip)
+
+    device_id = 0
+
+    # check if argv 1 is a number between 1 and 254
+    if (len(argv) > 1 and argv[1].isdigit() and int(argv[1]) >= 1 and int(argv[1]) <= 254):
+        device_id = int(argv[1])
+    else:
+        print("Invalid device ID. Must be an integer between 1 and 254")
+        exit(1)
+
+    
+    print("Device IP: ", device_ip)
+    print("Device ID: ", device_id)
     udp_router = udprouter(id=device_id, ip=device_ip)
