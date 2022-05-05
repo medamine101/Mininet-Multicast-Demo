@@ -2,6 +2,9 @@ from mininet.net import Mininet
 from mininet.log import output
 from mininet.cli import CLI
 
+"This file must be run with sudo to get the topology to work"
+
+# main function
 if __name__ == '__main__':
 
     net = Mininet()
@@ -54,8 +57,11 @@ if __name__ == '__main__':
     r5.intf('%s-eth2'%r5.name).setIP('10.0.13.1', 24)
     d3.intf('%s-eth0'%d3.name).setIP('10.0.13.2', 24)
 
+    # start network
     net.start()
 
+    # run CLI
     CLI(net)
 
+    # stop network once CLI exits
     net.stop()

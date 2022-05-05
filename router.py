@@ -1,24 +1,22 @@
-from cgi import print_arguments
-from socket import gethostbyname_ex, getfqdn, gethostname, gethostbyname, socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST, IPPROTO_UDP, getaddrinfo, SO_REUSEPORT
+from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, IPPROTO_UDP, SO_REUSEPORT
 from threading import Thread
-from turtle import forward
 from packet import *
 from time import sleep
 import netifaces as ni
 from helpers import *
-from typing import Tuple, Type, Set
+from typing import Set
 from sys import argv
 
 
 class udprouter():
 
     # Member variables
-    cent: centroid # Specifies if this router is the centroid
-    id: int # router id
-    ip: str # ip address of the router displayed to the user
-    seq: int # sequence number
-    rt: routing_table # routing table
-    broadcast_addresses: Set[str] = set() # set of broadcast addresses
+    cent: centroid  # Specifies if this router is the centroid
+    id: int  # router id
+    ip: str  # ip address of the router displayed to the user
+    seq: int  # sequence number
+    rt: routing_table  # routing table
+    broadcast_addresses: Set[str] = set()  # set of broadcast addresses
 
     # initialize the router
     def __init__(self, id: int, ip: str):
@@ -30,7 +28,7 @@ class udprouter():
 
         # Start thread for broadcasting HELLO packets
         Thread(target=self.broadcast_hello_packet,
-                args=(self.id, DEFAULT_TTL)).start()
+               args=(self.id, DEFAULT_TTL)).start()
 
         # Start thread for handling and forwarding HELLO packets
         Thread(target=self.handle_hello_packet).start()
@@ -56,7 +54,7 @@ class udprouter():
             for interface in ni.interfaces():
                 if (ni.ifaddresses(interface)[ni.AF_INET][0]['addr'] != '127.0.0.1'):
                     self.broadcast_addresses.add(ni.ifaddresses(interface)[
-                                                    ni.AF_INET][0]['broadcast'])
+                        ni.AF_INET][0]['broadcast'])
 
             # Create HELLO packet
             msg = create_HELLO_packet(
@@ -109,7 +107,7 @@ class udprouter():
             pkttype, seq, ttl, src_id, src_ip = decode_HELLO_packet(data)
 
             # Calculate the distance of the sender of the HELLO packet
-            hop_distance = DEFAULT_TTL - ttl + 1                
+            hop_distance = DEFAULT_TTL - ttl + 1
 
             # If packet belongs to the self, ignore it
             if (src_id == self.id):
@@ -143,67 +141,106 @@ class udprouter():
             if (ttl > 0 and forward):
                 self.forward_hello_packet(data)
 
-    
+    # Function called to forward recieved HELLO packets
     def forward_hello_packet(self, data):
+
+        # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
+        # See packet data
         pkttype, seq, ttl, src_id, src_ip = decode_HELLO_packet(data)
+
+        # Make packet to forward
         forwarded_packet = create_HELLO_packet(
             seq=seq, ttl=ttl-1, src_id=src_id, src_ip=src_ip)
-        # print("Forwarded packet: ", forwarded_packet)
+
+        # Send packet to all broadcast addresses
         for address in self.broadcast_addresses:
             sock.sendto(forwarded_packet, (address, DISCOVERY_PORT))
 
+    # Function to handle recieved multicast packets
     def handle_multicast_packet(self):
+
+        # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.bind(('0.0.0.0', CENTROID_SETUP_PORT))
 
+        # Loop to receive multicast packets
         while True:
+
+            # Receive packet
             data, addr = sock.recvfrom(1024)
+
             # decode multicast packet
             if len(data) == 2:  # handle centroid reply
+
+                # Get src and dest ids from packet
                 src, dst = decode_centroid_reply_packet(data)
-                print("Received centoird packet from ", self.rt.get_ip(src))
+
+                # Print where the packet came from
+                print("Received centroid packet from ", self.rt.get_ip(src))
+
+                # If the packet is from the self, ignore it
                 if (src == self.id):
                     continue
+
+                # Send the packet to the next hop
                 sock.sendto(
                     data, (self.rt.get_next_hop(dst), CENTROID_SETUP_PORT))
+
             else:  # handle centroid request
+
+                # Get all data from packet
                 pkttype, seq, src, N, dests = decode_centroid_request_packet(
                     data)
 
-                print("Received centoird packet from ", self.rt.get_ip(src))
+                # Print where the packet came from
+                print("Received centroid packet from ", self.rt.get_ip(src))
 
-                if (src == self.id): # ignore if packet is from self
+                # ignore if packet is from self
+                if (src == self.id):  
                     continue
+
                 # check if there is a bifurcation
                 possible_next_hops = set()
                 for dest in dests:
                     possible_next_hops.add(self.rt.get_next_hop(dest))
 
-                if len(possible_next_hops) > 1:  # bifurcation -> reply with centroid reply
+                # bifurcation -> reply with centroid reply
+                if len(possible_next_hops) > 1:  
                     centroid_reply = create_centroid_reply_packet(
                         src=self.id, dst=src)
-                    sock.sendto(centroid_reply, (self.rt.get_next_hop(src), CENTROID_SETUP_PORT))
+                    sock.sendto(
+                        centroid_reply, (self.rt.get_next_hop(src), CENTROID_SETUP_PORT))
                     self.cent.set_centroid(dests=dests)
-
                 else:  # no bifurcation -> forward the centroid request to next hop
                     for dest in possible_next_hops:
                         sock.sendto(data, (dest, CENTROID_SETUP_PORT))
 
+    # Function to handle recieved regular packets
     def handle_data_packet(self):
+
+        # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
         sock.bind(('0.0.0.0', DATA_PORT))
 
+        # Loop to receive regular packets
         while True:
+
+            # Receive packet
             packet, addr = sock.recvfrom(1024)
-            # decode data packet
+
+            # Print packet and address it came from
             print("Received data packet: ", packet, "from: ", addr)
+
+            # Decode packet
             pkttype, seq, src, dst, data = decode_data_packet(packet)
+
+            # If the packet is indeed the centoid, print such and forward the packet to the next hop
             if self.cent.is_centroid:
                 print('I am the centroid')
                 for dest in self.cent.get_dests():
@@ -211,12 +248,15 @@ class udprouter():
                         pkttype=1, seq=seq, src=self.id, dst=dest, data=data)
                     sock.sendto(new_data_packet,
                                 (self.rt.get_next_hop(dest), DATA_PORT))
+                    
+                    # if the packet includes instruction to end transmission, then this router is no longer a centroid
                     if (data == 'end_of_transmission'):
                         self.cent = centroid()
             else:  # forward to destination
                 print('Forwarding data packet to ', self.rt.get_ip(dst))
                 sock.sendto(packet, (self.rt.get_next_hop(dst), DATA_PORT))
             # sleep(0.2)
+
 
 if __name__ == '__main__':
     print("Router Started...")
@@ -230,7 +270,7 @@ if __name__ == '__main__':
         if 'eth' in ifstring:
             device_ip = ni.ifaddresses(ifstring)[ni.AF_INET][0]['addr']
             break
-    
+
     # Take device ID as command line argument, must be between 1 and 254
     device_id = 0
     if (len(argv) > 1 and argv[1].isdigit() and int(argv[1]) >= 1 and int(argv[1]) <= 254):
