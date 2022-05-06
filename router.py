@@ -20,6 +20,9 @@ class udprouter():
 
     # initialize the router
     def __init__(self, id: int, ip: str):
+        """
+        Initializes the router
+        """
         self.id = id
         self.ip = ip
         self.rt = routing_table()
@@ -41,6 +44,9 @@ class udprouter():
 
     # Function that starts a loop to periodically broadcast HELLO packets
     def broadcast_hello_packet(self, src_id: int = 100, ttl: int = DEFAULT_TTL):
+        """
+        Starts a loop to periodically broadcast HELLO packets
+        """
 
         # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
@@ -77,6 +83,9 @@ class udprouter():
 
     # Function to handle recieved HELLO packets and perform routing table updates
     def handle_hello_packet(self):
+        """
+        Function to handle recieved HELLO packets and perform routing table updates
+        """
 
         # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM)
@@ -141,8 +150,11 @@ class udprouter():
             if (ttl > 0 and forward):
                 self.forward_hello_packet(data)
 
-    # Function called to forward recieved HELLO packets
+    # Function called to forward received HELLO packets
     def forward_hello_packet(self, data):
+        """
+        Function called to forward received HELLO packets
+        """
 
         # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
@@ -160,8 +172,11 @@ class udprouter():
         for address in self.broadcast_addresses:
             sock.sendto(forwarded_packet, (address, DISCOVERY_PORT))
 
-    # Function to handle recieved multicast packets
+    # Function to handle received multicast packets
     def handle_multicast_packet(self):
+        """
+        Function to handle received multicast packets
+        """
 
         # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM)
@@ -201,7 +216,7 @@ class udprouter():
                 print("Received centroid packet from ", self.rt.get_ip(src))
 
                 # ignore if packet is from self
-                if (src == self.id):  
+                if (src == self.id):
                     continue
 
                 # check if there is a bifurcation
@@ -209,20 +224,23 @@ class udprouter():
                 for dest in dests:
                     possible_next_hops.add(self.rt.get_next_hop(dest))
 
-                # bifurcation -> reply with centroid reply
-                if len(possible_next_hops) > 1:  
+                if len(possible_next_hops) > 1:  # bifurcation -> reply with centroid reply
                     centroid_reply = create_centroid_reply_packet(
                         src=self.id, dst=src)
                     sock.sendto(
                         centroid_reply, (self.rt.get_next_hop(src), CENTROID_SETUP_PORT))
                     self.cent.set_centroid(dests=dests)
+                    print("I am the centroid between source ",
+                          src, " and destinations ", dests)
                 else:  # no bifurcation -> forward the centroid request to next hop
                     for dest in possible_next_hops:
                         sock.sendto(data, (dest, CENTROID_SETUP_PORT))
 
-    # Function to handle recieved regular packets
+    # Function to handle regular packets for routers
     def handle_data_packet(self):
-
+        """
+        Function to handle data packets
+        """
         # Set up socket
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
@@ -248,14 +266,12 @@ class udprouter():
                         pkttype=1, seq=seq, src=self.id, dst=dest, data=data)
                     sock.sendto(new_data_packet,
                                 (self.rt.get_next_hop(dest), DATA_PORT))
-                    
+
                     # if the packet includes instruction to end transmission, then this router is no longer a centroid
                     if (data == 'end_of_transmission'):
                         self.cent = centroid()
             else:  # forward to destination
-                print('Forwarding data packet to ', self.rt.get_ip(dst))
                 sock.sendto(packet, (self.rt.get_next_hop(dst), DATA_PORT))
-            # sleep(0.2)
 
 
 if __name__ == '__main__':

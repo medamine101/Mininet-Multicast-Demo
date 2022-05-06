@@ -13,6 +13,9 @@ class udphost(udprouter):
 
     # Super init is not called as not all udprouter threads are needed
     def __init__(self, id: int, ip: str):
+        """
+        Constructor for udphost class
+        """
         self.id = id
         self.ip = ip
         self.rt = routing_table()
@@ -27,16 +30,20 @@ class udphost(udprouter):
 
         sleep(5)
         # Start thread for handling multicast data sending and receiving
-        Thread(target=self.handle_multicast_data).start()
+        Thread(target=self.handle_centroid_packets).start()
 
     # Method to handle sending and receiving of multicast data
-    def handle_multicast_data(self):
+    def handle_centroid_packets(self):
+        """
+        Method to handle receiving and forwarding of centroid request/reply packets
+        """
 
         # Loop to allow user to keep sending and receiving data
         while True:
 
             # Ask if user wants to send or receive from this host
-            choice = input('Are you sending or receiving?')
+            print("Would you like to send or receive data? (s/r)")
+            choice = input()
 
             # If user wants to send
             if (choice == 's'):
@@ -126,10 +133,6 @@ class udphost(udprouter):
                     # decode data packet
                     centroid, dst = decode_centroid_reply_packet(packet)
 
-                    # Print where reply came from
-                    print('received centroid reply from centroid {}'.format(
-                        self.rt.get_ip(centroid)))
-
                     # send data packet to centroid
                     data_sock = socket(AF_INET, SOCK_DGRAM)
                     data_sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
@@ -149,8 +152,7 @@ class udphost(udprouter):
                             break
                     data_sock.close()
 
-            else:  # If user wants to receive
-                print("Receiving data")
+            elif choice == 'r':  # If user wants to receive
 
                 # Set up socket
                 sock = socket(AF_INET, SOCK_DGRAM)
@@ -169,6 +171,8 @@ class udphost(udprouter):
                     else:  # If data is end of transmission, break out of loop
                         print('End of transmission')
                         break
+            else:
+                print("Invalid input")
 
 
 if __name__ == '__main__':
